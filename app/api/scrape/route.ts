@@ -51,41 +51,51 @@ const SITES = [
     name: "HobbyHolics",
     url: (model: string) =>
       `https://hobbyholics.com/search.php?search_query=${encodeURIComponent(model)}`,
-    parseAll: ($: cheerio.Root): ScrapeResult[] => {
-      const items: ScrapeResult[] = [];
-      $("ul.productGrid li.product").each((_, el) => {
-        const cardHtml = $.html(el);
-        const card     = cheerio.load(el);
-        const aTag = card("figure.card-figure > a.card-figure__link").first();
-        const rawHref = aTag.attr("href") || "";
-        const link    = rawHref.startsWith("http")
-          ? rawHref
-          : `https://hobbyholics.com${rawHref}`;
-        const name    = aTag.attr("aria-label")?.trim() || aTag.text().trim();
+    parseAll: async (_: cheerio.Root, model: string): Promise<ScrapeResult[]> => {
+      const browser = await puppeteer.launch({ args: ["--no-sandbox"] });
+      const page    = await browser.newPage();
+      const searchUrl = `https://hobbyholics.com/search.php?search_query=${encodeURIComponent(model)}`;
 
-        const matches = cardHtml.match(/\$\d+(?:\.\d+)?/g) || [];
-        const price   = matches.length
-          ? `$${Math.min(...matches.map(p => parseFloat(p.slice(1)))).toFixed(2)}`
-          : "N/A";
+      await page.goto(searchUrl, { waitUntil: "networkidle2" });
+      // wait for JS to render the list
+      await page.waitForSelector("ul.productGrid li.product");
 
-        const imgEl   = card("img.card-image").first();
-        const src     = imgEl.attr("src")     || "";
-        const dataSrc = imgEl.attr("data-src")|| "";
-        const rawSrc  = src || dataSrc;
-        if (!rawSrc) return;
+      const items: ScrapeResult[] = await page.evaluate(() => {
+        return Array.from(document.querySelectorAll<HTMLLIElement>("ul.productGrid li.product")).map(el => {
+          // skip sold-out or missing
+          const soldOut = !!el.querySelector(".outofstock, .sold-out");
+          if (soldOut) return null;
 
-        const picture = rawSrc.startsWith("http")
-          ? rawSrc
-          : rawSrc.startsWith("//")
-          ? `https:${rawSrc}`
-          : `https://hobbyholics.com${rawSrc}`;
+          // name & link
+          const a = el.querySelector<HTMLAnchorElement>("figure.card-figure a.card-figure__link");
+          const name = a?.getAttribute("aria-label")?.trim() || a?.textContent?.trim() || "";
+          let link = a?.href || "";
+          if (link && !link.startsWith("http")) link = `https://hobbyholics.com${link}`;
 
-        if (!name || price === "N/A" || !link) return;
-        items.push({ site: "HobbyHolics", name, price, link, picture });
+          // image
+          const img = el.querySelector<HTMLImageElement>("img.card-image");
+          let picture = img?.src || img?.getAttribute("data-src") || "";
+          if (picture && picture.startsWith("//")) picture = `https:${picture}`;
+          else if (picture && !picture.startsWith("http")) picture = `https://hobbyholics.com${picture}`;
+
+          // price: find all “$…” spans and pick the lowest
+          const text = el.textContent || "";
+          const prices = Array.from(text.matchAll(/\$(\d+(?:\.\d+)?)/g), m => parseFloat(m[1]));
+          const price = prices.length
+            ? `$${Math.min(...prices).toFixed(2)}`
+            : "N/A";
+
+          if (!name || price === "N/A" || !link || !picture) return null;
+          return { site: "HobbyHolics", name, price, link, picture };
+        })
+        .filter((x): x is ScrapeResult => !!x);
       });
+
+      await browser.close();
       return items;
     },
   },
+
   {
     name: "USAGundamStore",
     url: (model: string) =>
