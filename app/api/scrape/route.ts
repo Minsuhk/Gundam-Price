@@ -219,6 +219,73 @@ const SITES = [
       return items;
     },
   },
+  {
+    name: "NewtypeUS",
+    url: (q: string) => `https://newtype.us/search?q=${encodeURIComponent(q)}`,
+    parseAll: async (_: cheerio.Root, query: string): Promise<ScrapeResult[]> => {
+      const browser = await puppeteer.launch({ args: ["--no-sandbox"] });
+      const page    = await browser.newPage();
+
+      // avoid headless‐detection
+      await page.setUserAgent(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+        "(KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+      );
+
+      const searchUrl = `https://newtype.us/search?q=${encodeURIComponent(query)}`;
+      await page.goto(searchUrl, { waitUntil: "networkidle2" });
+      // wait for the image wrappers to appear
+      await page.waitForSelector("div.relative.flex.flex-col");
+
+      const items: ScrapeResult[] = await page.$$eval(
+        "div.relative.flex.flex-col",
+        (wrappers) =>
+          wrappers
+            .map((wrap) => {
+              // — 1) image & link
+              const photoLink = wrap.querySelector<HTMLAnchorElement>("a.bg-photo");
+              if (!photoLink) return null;
+
+              let link = photoLink.href || photoLink.getAttribute("href")!;
+              if (!link.startsWith("http")) link = `https://newtype.us${link}`;
+
+              const imgEl = photoLink.querySelector<HTMLImageElement>("img");
+              let picture = imgEl?.src || imgEl?.getAttribute("src") || "";
+              if (picture.startsWith("//")) picture = `https:${picture}`;
+              else if (!picture.startsWith("http")) picture = `https://newtype.us${picture}`;
+
+              // — 2) details are in the very next sibling
+              const detail = wrap.nextElementSibling as HTMLElement | null;
+              if (!detail) return null;
+
+              // — 3) product name
+              const nameEl = detail.querySelector<HTMLAnchorElement>("a.text-strong");
+              const name   = nameEl?.textContent?.trim() || "";
+              if (!name) return null;
+
+              // — 4) price: first <span> under the “items-center” row
+              const priceEl = detail.querySelector<HTMLElement>("div.items-center span");
+              const price   = priceEl?.textContent?.trim() || "N/A";
+              if (price === "N/A") return null;
+
+              // — 5) stock: drop if “out of stock”
+              const stockTag = detail.querySelector<HTMLElement>("div.stock-tag");
+              const stockTxt = stockTag?.textContent?.toLowerCase() || "";
+              if (stockTxt.includes("out of stock")) return null;
+
+              return { site: "NewtypeUS", name, price, link, picture };
+            })
+            .filter((x): x is ScrapeResult => !!x)
+      );
+
+      await browser.close();
+      console.log("[NewtypeUS] Scraped items:", items.length);
+      return items;
+    },
+  },
+
+
+
 
 ];
 
