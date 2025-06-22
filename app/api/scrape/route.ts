@@ -95,7 +95,6 @@ const SITES = [
       return items;
     },
   },
-
   {
     name: "USAGundamStore",
     url: (model: string) =>
@@ -293,6 +292,78 @@ const SITES = [
       return items;
     },
   },
+  {
+    name: "AnimeJungle",
+    url:   (model: string) =>
+      `https://animejungle.net/search.php?search_query=${encodeURIComponent(
+        model
+      )}&section=product`,
+    parseAll: async (_: cheerio.Root, model: string): Promise<ScrapeResult[]> => {
+      const browser = await puppeteer.launch({ args: ["--no-sandbox"] });
+      const page    = await browser.newPage();
+      const searchUrl = `https://animejungle.net/search.php?search_query=${encodeURIComponent(
+        model
+      )}&section=product`;
+
+      console.log("[AnimeJungle] navigating to", searchUrl);
+      await page.goto(searchUrl, { waitUntil: "networkidle2" });
+      // wait for at least one result
+      await page.waitForSelector("ul.productGrid li.product");
+
+      const items: ScrapeResult[] = await page.evaluate(() => {
+        return Array.from(
+          document.querySelectorAll<HTMLLIElement>("ul.productGrid li.product")
+        )
+          .map((product) => {
+            // 1) name
+            const nameEl = product.querySelector<HTMLHeadingElement>(
+              "h4.card-title"
+            );
+            const name = nameEl?.textContent?.trim() || "";
+            if (!name) return null;
+
+            // 2) link
+            const a = product.querySelector<HTMLAnchorElement>(
+              "figure.card-figure a"
+            );
+            let href = a?.getAttribute("href") || "";
+            if (!href) return null;
+            if (!href.startsWith("http")) {
+              href = `https://animejungle.net${href}`;
+            }
+
+            // 3) price
+            const priceEl = product.querySelector<HTMLSpanElement>(
+              "span[data-product-price-without-tax]"
+            );
+            const price = priceEl?.textContent?.trim() || "";
+            if (!price) return null;
+
+            // 4) image
+            // they sometimes include an <img>, so try that first
+            let picture = "";
+            const img = product.querySelector<HTMLImageElement>(
+              "figure.card-figure img"
+            );
+            if (img?.src) {
+              picture = img.src;
+              if (picture.startsWith("//")) picture = `https:${picture}`;
+              else if (!picture.startsWith("http"))
+                picture = `https://animejungle.net${picture}`;
+            }
+
+            return { site: "AnimeJungle", name, price, link: href, picture };
+          })
+          .filter((x): x is ScrapeResult => !!x);
+      });
+
+      console.log("[AnimeJungle] scraped", items.length, "items");
+      await browser.close();
+      return items;
+    },
+  },
+
+
 
 
 
