@@ -22,16 +22,17 @@ export default function HomePage() {
     let data: Result[] = [];
 
     try {
-      const res = await fetch(`/api/scrape?model=${encodeURIComponent(model)}`);
-      if (res.ok) {
-        // try/catch in case the body isn’t valid JSON
+      const res = await fetch(
+        `/api/scrape?grade=${encodeURIComponent(grade)}&model=${encodeURIComponent(model)}`
+      );
+      if (!res.ok) {
+        console.error("Non-OK response from /api/scrape:", res.status);
+      } else {
         try {
           data = await res.json();
         } catch (parseErr) {
           console.error("Invalid JSON from /api/scrape:", parseErr);
         }
-      } else {
-        console.error("Non-OK response from /api/scrape:", res.status);
       }
     } catch (networkErr) {
       console.error("Network error fetching /api/scrape:", networkErr);
@@ -40,6 +41,7 @@ export default function HomePage() {
     setResults(data);
     setLoading(false);
   }
+
 
 
   return (

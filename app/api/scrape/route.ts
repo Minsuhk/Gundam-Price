@@ -224,48 +224,71 @@ const SITES = [
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const model = searchParams.get("model")?.trim() || "";
-  console.log("Scrape called with model:", model);
+
+  // 1) read both grade + model
+  const grade = searchParams.get("grade")?.trim()  || "";
+  const model = searchParams.get("model")?.trim()  || "";
   if (!model) {
-    return NextResponse.json({ error: "No model provided" }, { status: 400 });
+    return NextResponse.json([], { status: 400 });
   }
 
+  // 2) build a single combined query string
+  const fullQuery = [grade, model].filter((x) => x).join(" ");  // e.g. "MG Strike Freedom"
+
+  // 3) scrape every site, passing fullQuery into each URL/parser
   const all = await Promise.all(
-    SITES.map(async ({ name: siteName, url, parseAll }) => {
+    SITES.map(async ({ name, url, parseAll }) => {
       try {
-        if (siteName === "USAGundamStore") {
-          return await parseAll(undefined as any, model);
-        } else {
-          const res  = await fetch(url(model));
-          if (!res.ok) {
-            throw new Error(`Fetch failed (${res.status} ${res.statusText}) for ${siteName}`);
-          }
-          const html = await res.text();
-          const $    = cheerio.load(html);
-          return parseAll($, model);
+        if (name === "USAGundamStore" || name === "BrookhurstHobbies") {
+          // Puppeteer‐powered parsers already expect ( _ , modelString )
+          return await parseAll(undefined as any, fullQuery);
         }
+
+        // Cheerio sites: just hit their search endpoint with fullQuery
+        const siteUrl = url(encodeURIComponent(fullQuery));
+        const res     = await fetch(siteUrl);
+        if (!res.ok) throw new Error(`Fetch failed (${res.status}) for ${name}`);
+        const html = await res.text();
+        const $    = cheerio.load(html);
+
+        // pass cheerio root + **also** fullQuery, in case you ever use it there
+        return parseAll($, fullQuery);
       } catch (err: any) {
-        // Log the full error on the server
-        console.error(`✖️ Error scraping ${siteName}:`, err);
-        // Return a placeholder result with the error message
+        console.error(`Error scraping ${name}`, err);
         return [{
-          site:  siteName,
-          name:  `ERROR: ${err.message}`,
-          price: "N/A",
-          link:  "",
+          site:    name,
+          name:    `ERROR: ${err.message}`,
+          price:   "N/A",
+          link:    "",
           picture: ""
-        } as ScrapeResult];
+        }] as ScrapeResult[];
       }
     })
   );
 
-  // flatten
+  // 4) flatten all results into one array
   const results = all.flat();
-  return NextResponse.json(results, {
+
+  // 5) split your fullQuery into individual words
+  const words = fullQuery
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length > 0);
+
+  // 6) only keep products whose name contains *every* word
+  const filtered = results.filter((item) => {
+    const lower = item.name.toLowerCase();
+    return words.every((w) => lower.includes(w));
+  });
+
+  // 7) return that final, filtered list
+  return NextResponse.json(filtered, {
     status: 200,
-    headers: { "Cache-Control": "s-maxage=300, stale-while-revalidate" }
+    headers: { "Cache-Control": "s-maxage=300, stale-while-revalidate" },
   });
 }
+
+
 
 
 
