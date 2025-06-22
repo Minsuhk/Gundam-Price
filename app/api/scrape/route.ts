@@ -362,12 +362,50 @@ const SITES = [
       return items;
     },
   },
+  {
+    name: "ToyArena",
+    // 1) build the search URL using the same fullQuery you pass to your GET
+    url: (query: string) =>
+      `https://toyarena.com/search?q=${encodeURIComponent(query)}&options%5Bprefix%5D=last`,
+    // 2) Cheerio-only parser
+    parseAll: ($: cheerio.Root, query: string): ScrapeResult[] => {
+      const items: ScrapeResult[] = [];
 
+      // each product card on ToyArena search
+      $("li.collection-product-card").each((_, el) => {
+        const card = cheerio.load(el);
 
+        // a) Name & Link
+        const aTag = card("a.full-unstyled-link").first();
+        const href = aTag.attr("href") || "";
+        const link = href.startsWith("http")
+          ? href
+          : `https://toyarena.com${href}`;
+        const name = aTag.attr("title")?.trim() || aTag.text().trim();
+        if (!name || !link) return;
 
+        // b) Picture
+        const img = card("div.media--hover-effect img").first();
+        let picture = img.attr("src") || "";
+        if (picture.startsWith("//")) picture = `https:${picture}`;
+        else if (!picture.startsWith("http")) picture = `https://toyarena.com${picture}`;
 
+        // c) Price (regular or sale)
+        const reg  = card("span.price-item--regular").first().text().trim();
+        const sale = card("span.price-item--sale").first().text().trim();
+        const price = reg || sale || "N/A";
+        if (price === "N/A") return;
 
+        // d) Skip sold-out
+        const soldOut = card("span.badge--soldout").length > 0;
+        if (soldOut) return;
 
+        items.push({ site: "ToyArena", name, price, link, picture });
+      });
+
+      return items;
+    },
+  },
 ];
 
 export async function GET(request: Request) {

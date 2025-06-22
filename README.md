@@ -38,7 +38,5 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 
 ■ Todo:
-• add Toy Arena
-• add Anime jg
-• fix brookhurst hobby
 • make pretty
+• indicator for when hobby lobby sale is active??
