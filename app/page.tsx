@@ -89,7 +89,7 @@ export default function HomePage() {
             className="flex border rounded overflow-hidden"
           >
             <img
-              src={r.picture}
+              src={r.picture || "/Cat_00.jpg"}
               alt={r.name}
               className="w-32 h-32 object-cover flex-shrink-0"
             />
