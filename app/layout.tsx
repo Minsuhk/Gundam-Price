@@ -10,10 +10,17 @@ export const metadata: Metadata = {
   title:       "Char’s Choice",
   description: "Local gunpla prices",
   icons: {
-   icon:     "/favicon.png",    // make sure you've put favicon.png in public/
-   shortcut: "/favicon.png",
-   apple:    "/favicon.png",
- },
+    icon:     "/char.svg",
+    shortcut: "/char.svg",
+    apple:    "/char.svg",
+    other: [
+      {
+        rel:  "mask-icon",
+        url:  "/char.svg",
+        color: "#5bbad5",
+      }
+    ]
+  },
 };
 
 export default function RootLayout({
@@ -23,10 +30,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      {/* ← this tells Next.js "please inject the <meta> and <link> tags from `metadata` here" */}
-      <head>
-
-      </head>
+      <head />
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {children}
       </body>
