@@ -386,7 +386,7 @@ const SITES = [
 
         // b) Picture
         const img = card("div.media--hover-effect img").first();
-        let picture = img.attr("src") || "/Cat_00.jpg";
+        let picture = img.attr("src") || "/Cat_01.png";
         if (picture.startsWith("//")) picture = `https:${picture}`;
         else if (!picture.startsWith("http")) picture = `https://toyarena.com${picture}`;
 
