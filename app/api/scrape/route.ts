@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 import puppeteer from "puppeteer";
 
+// tell Next.js “this runs under Node.js, not the Edge”
+export const runtime = "nodejs";
+
 interface ScrapeResult {
   site:   string;
   name:   string;
@@ -52,7 +55,12 @@ const SITES = [
     url: (model: string) =>
       `https://hobbyholics.com/search.php?search_query=${encodeURIComponent(model)}`,
     parseAll: async (_: cheerio.Root, model: string): Promise<ScrapeResult[]> => {
-      const browser = await puppeteer.launch({ args: ["--no-sandbox"] });
+      // under Vercel you can point puppeteer at the system Chrome:
+      const browser = await puppeteer.launch({
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        headless: true,
+      });
       const page    = await browser.newPage();
       const searchUrl = `https://hobbyholics.com/search.php?search_query=${encodeURIComponent(model)}`;
 
@@ -100,7 +108,11 @@ const SITES = [
     url: (model: string) =>
       `https://usagundamstore.com/collections/shop?q=${encodeURIComponent(model)}`,
     parseAll: async (_: cheerio.Root, model: string): Promise<ScrapeResult[]> => {
-      const browser = await puppeteer.launch({ args: ["--no-sandbox"] });
+      const browser = await puppeteer.launch({
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        headless: true,
+      });
       const page    = await browser.newPage();
       const searchUrl = `https://usagundamstore.com/collections/shop?q=${encodeURIComponent(model)}`;
 
@@ -168,7 +180,11 @@ const SITES = [
       `https://brookhursthobbies.com/#99db/fullscreen/m=and&q=${encodeURIComponent(model)}`,
     // note: we ignore Cheerio’s Root here
     parseAll: async (_: cheerio.Root, model: string): Promise<ScrapeResult[]> => {
-      const browser = await puppeteer.launch({ args: ["--no-sandbox"] });
+      const browser = await puppeteer.launch({
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        headless: true,
+      });
       const page    = await browser.newPage();
       const searchUrl = `https://brookhursthobbies.com/#99db/fullscreen/m=and&q=${encodeURIComponent(model)}`;
 
