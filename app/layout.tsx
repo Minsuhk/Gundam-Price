@@ -11,15 +11,6 @@ export const metadata: Metadata = {
   description: "Local gunpla prices",
   icons: {
     icon:     "/char.svg",
-    shortcut: "/char.svg",
-    apple:    "/char.svg",
-    other: [
-      {
-        rel:  "mask-icon",
-        url:  "/char.svg",
-        color: "#5bbad5",
-      }
-    ]
   },
 };
 
