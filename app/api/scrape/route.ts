@@ -473,9 +473,3 @@ export async function GET(request: Request) {
     headers: { "Cache-Control": "s-maxage=300, stale-while-revalidate" },
   });
 }
-
-
-
-
-
-//In the following code, is it possible to create buttons that will allow the user to change between the webscraping of different sites? For example, I want four buttons undearneath teh title of "Char's Choice". One for "Robots4Less", second for "HobbyHolics", third for "Brookhurt Hobbies", and fourth for "Amazon"
